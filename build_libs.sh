@@ -10,6 +10,6 @@ INCLUDE_FLAGS="$IMGUI_INCLUDE $SDL2_INCLUDE"
 LINKER_FLAGS="-lSDL2"
 
 IMGUI_SRC="thirdparty/imgui/*.cpp thirdparty/imgui/backends/imgui_impl_sdl2.cpp thirdparty/imgui/backends/imgui_impl_sdlrenderer2.cpp"
-IMPLOT_SRC="thirdparty/implot/implot.cpp"
+IMPLOT_SRC="thirdparty/implot/implot.cpp thirdparty/implot/implot_items.cpp"
 
 g++ -shared -fPIC -g $INCLUDE_FLAGS $IMGUI_SRC $IMPLOT_SRC -o build/libNumerics.so -lSDL2
