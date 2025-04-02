@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <SDL.h>
+#include <limits.h>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
@@ -12,13 +13,12 @@ int main(){
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
                 return -1;
 
-        SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-        SDL_Window* window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
-        if (!window)
+        SDL_Window* Window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+        if (!Window)
                 return -1;
 
-        SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
-        if(!renderer)
+        SDL_Renderer* Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+        if(!Renderer)
                 return -1;
 
         IMGUI_CHECKVERSION();
@@ -28,32 +28,46 @@ int main(){
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
         ImGui::StyleColorsDark();
 
-        ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-        ImGui_ImplSDLRenderer2_Init(renderer);
+        ImGui_ImplSDL2_InitForSDLRenderer(Window, Renderer);
+        ImGui_ImplSDLRenderer2_Init(Renderer);
+        
+        //ImFont *font = io.Fonts->AddFontFromFileTTF("~/.fonts/JetBrainsMonoNerdFont-Medium.ttf", 15.0f);
 
         ImPlot::CreateContext();
 
-        bool show_demo_window = true;
-        bool show_another_window = false;
-        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+        // ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-        float xs[10];
-        for(int x=0; x<10; x++) xs[x] = (float)x;
+        float xs[100];
+        float ys[100];
+        for(int x=0; x<100; x++){
+                xs[x] = (float)(x * .1f);
+                ys[x] = 1 * cos(xs[x]);
+        }
 
-        float ys[10];
-        for(int x=0; x<10; x++) ys[x] = (float)x;
+        char Buff_a[64];
+        char Buff_b[64];
+        char Buff_c[64];
+        char Buff_f[64];
+        char Buff_y[64];
+        int BuffSize = 64;
+        int N = 64;
+        float T0 = 0;
+        float Tf = 1;
+        float h = (Tf - T0) / N;
 
-        bool done = false;
-        while (!done){
+        bool IsQuit = false;
+        while (!IsQuit){
+
                 SDL_Event event;
                 while (SDL_PollEvent(&event)){
                         ImGui_ImplSDL2_ProcessEvent(&event);
                         if (event.type == SDL_QUIT)
-                                done = true;
-                        if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
-                                done = true;
+                                IsQuit = true;
+                        if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(Window))
+                                IsQuit = true;
                 }
-                if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED){
+
+                if (SDL_GetWindowFlags(Window) & SDL_WINDOW_MINIMIZED){
                         SDL_Delay(10);
                         continue;
                 }
@@ -62,57 +76,67 @@ int main(){
                 ImGui_ImplSDL2_NewFrame();
                 ImGui::NewFrame();
 
-                {
-                        static float f = 0.0f;
-                        static int counter = 0;
+                ImGui::SetNextWindowSize(io.DisplaySize);
+                ImGui::SetNextWindowPos(ImVec2(0, 0));
+                ImGui::Begin("Numerics", nullptr, ImGuiWindowFlags_NoDecoration);
+                 ImGui::ShowDemoWindow();
 
-                        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+                ImVec2 WindowDim = ImGui::GetContentRegionAvail();
+                float PanelWidth = WindowDim.x * .3;
 
-                        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-                        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-                        ImGui::Checkbox("Another Window", &show_another_window);
+                ImGui::BeginChild("Methodes", ImVec2(PanelWidth, WindowDim.y), true);
 
-                        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-                        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+                if (ImGui::CollapsingHeader("Equation Differentielle Ordinaire")){
+                        ImGui::DragFloat("t0", &T0, 0.05f, 0.0f, Tf, "%.3f", ImGuiSliderFlags_None);
+                        ImGui::DragFloat("tf", &Tf, 0.05f, T0, FLT_MAX, "%.3f", ImGuiSliderFlags_None);
+                        if(ImGui::DragInt("N", &N, 1, 1, INT_MAX, "%d", ImGuiSliderFlags_None))
+                                h = (Tf - T0) / N;
+                        if(ImGui::DragFloat("h", &h, 0.0001f, 0, 1, "%f", ImGuiSliderFlags_None))
+                                N = (int)((Tf - T0) / h);
 
-                        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                                counter++;
-                        ImGui::SameLine();
-                        ImGui::Text("counter = %d", counter);
+                        ImGui::InputText("y(t)", Buff_y, BuffSize);
+                //         bool Update = false;
+                //         ImGui::Text("a(x)y''(x) + b(x)y'(x) + c(x)y(x) = f(x)");
+                //         Update |= ImGui::InputText("a(x)", Buff_a, BuffSize);
+                //         Update |= ImGui::InputText("b(x)", Buff_b, BuffSize);
+                //         Update |= ImGui::InputText("c(x)", Buff_c, BuffSize);
+                //         Update |= ImGui::InputText("f(x)", Buff_f, BuffSize);
+                //         if(Update){
 
-                        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-
-                        if (ImPlot::BeginPlot("My Plot")) {
-                                ImPlot::PlotLine("My Line Plot", xs, ys, 10);
-                                ImPlot::EndPlot();
-                        }
-
-                         ImGui::End();
-
+                //         }
                 }
 
-                if (show_another_window){
-                        ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-                        ImGui::Text("Hello from another window!");
-                        if (ImGui::Button("Close Me"))
-                                show_another_window = false;
-                        ImGui::End();
+                if (ImGui::CollapsingHeader("Equation Differentielle Partielle")){}
+                if (ImGui::CollapsingHeader("Gradient Descent")){}
+                
+                ImGui::EndChild();
+
+                ImGui::SameLine();
+
+                float GraphWidth = WindowDim.x - PanelWidth;
+                ImGui::BeginChild("Graph", ImVec2(GraphWidth, WindowDim.y), true);
+
+                if (ImPlot::BeginPlot("Solution", ImGui::GetContentRegionAvail())) {
+                        ImPlot::PlotLine("y(x)", xs, ys, 100);
+                        ImPlot::EndPlot();
                 }
+
+                ImGui::EndChild();
+                ImGui::End();
 
                 ImGui::Render();
-                SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-                SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
-                SDL_RenderClear(renderer);
-                ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-                SDL_RenderPresent(renderer);
+                SDL_RenderSetScale(Renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+                SDL_RenderClear(Renderer);
+                ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), Renderer);
+                SDL_RenderPresent(Renderer);
         }
 
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
         ImGui::DestroyContext();
 
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
+        SDL_DestroyRenderer(Renderer);
+        SDL_DestroyWindow(Window);
         SDL_Quit();
 
         return 0;
